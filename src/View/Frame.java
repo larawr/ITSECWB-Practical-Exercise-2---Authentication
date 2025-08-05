@@ -5,6 +5,8 @@ import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Dimension;
 import javax.swing.WindowConstants;
+import org.mindrot.jbcrypt.BCrypt;
+
 
 public class Frame extends javax.swing.JFrame {
 
@@ -256,9 +258,14 @@ public class Frame extends javax.swing.JFrame {
         frameView.show(Container, "registerPnl");
     }
     
-    public void registerAction(String username, String password, String confpass){
-        main.sqlite.addUser(username, password);
-    }
+        public void registerAction(String username, String password, String confpass){
+            // Hash the password securely
+            String hashedPassword = BCrypt.hashpw(password, BCrypt.gensalt());
+
+            // Save the username and hashed password to the database
+            main.sqlite.addUser(username, hashedPassword);
+        }
+
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JPanel Container;
