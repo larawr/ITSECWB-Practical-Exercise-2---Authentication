@@ -1,6 +1,12 @@
 
 package View;
 
+import Controller.Main;
+import Model.User;
+import javax.swing.JOptionPane;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+
 public class Login extends javax.swing.JPanel {
 
     public Frame frame;
@@ -15,7 +21,7 @@ public class Login extends javax.swing.JPanel {
 
         jLabel1 = new javax.swing.JLabel();
         usernameFld = new javax.swing.JTextField();
-        passwordFld = new javax.swing.JTextField();
+        passwordFld = new javax.swing.JPasswordField();
         registerBtn = new javax.swing.JButton();
         loginBtn = new javax.swing.JButton();
 
@@ -82,7 +88,121 @@ public class Login extends javax.swing.JPanel {
                 .addContainerGap(126, Short.MAX_VALUE))
         );
     }// </editor-fold>//GEN-END:initComponents
+    private String getClientIP() {
+        try {
+            return InetAddress.getLocalHost().getHostAddress();
+        } catch (UnknownHostException e) {
+            return "127.0.0.1"; // Default to localhost if can't determine IP
+        }
+    }
+    
     private void loginBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_loginBtnActionPerformed
+        String username = usernameFld.getText().trim();
+        String password = new String(passwordFld.getPassword());
+        String clientIP = getClientIP();
+
+        // Enhanced input validation and sanitization
+        if (username.isEmpty() || password.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Please enter both username and password.");
+            return;
+        }
+
+        // Sanitize inputs
+        username = frame.main.sqlite.sanitizeInput(username);
+        password = frame.main.sqlite.sanitizeInput(password);
+
+        // Check for XSS attempts
+        if (!frame.main.sqlite.isInputSafe(username) || !frame.main.sqlite.isInputSafe(password)) {
+            JOptionPane.showMessageDialog(this, "Invalid characters detected in input.");
+            return;
+        }
+
+        // Username format validation
+        if (!frame.main.sqlite.isUsernameValid(username)) {
+            JOptionPane.showMessageDialog(this, "Invalid username format. Use 3-20 characters, letters, numbers, and underscores only.");
+            return;
+        }
+
+        // IP-based rate limiting
+        if (frame.main.sqlite.isIPRateLimited(clientIP)) {
+            JOptionPane.showMessageDialog(this, "Too many login attempts detected. Please wait a few minutes before trying again.");
+            frame.main.sqlite.logSecurityEvent("IP_RATE_LIMITED", username, "IP: " + clientIP);
+            return;
+        }
+
+        // Check if user exists
+        if (!frame.main.sqlite.userExists(username)) {
+            // Log failed login attempt
+            frame.main.sqlite.logLoginAttempt(username, clientIP, false);
+            frame.main.sqlite.logSecurityEvent("FAILED_LOGIN", username, "User does not exist - IP: " + clientIP);
+            JOptionPane.showMessageDialog(this, "Invalid username or password.");
+            return;
+        }
+
+        // Check if account is recently locked
+        if (frame.main.sqlite.isAccountRecentlyLocked(username)) {
+            JOptionPane.showMessageDialog(this, "Account is temporarily locked. Please try again later.");
+            return;
+        }
+
+        // Check for suspicious activity
+        if (frame.main.sqlite.isSuspiciousActivity(username, clientIP)) {
+            frame.main.sqlite.logSecurityEvent("SUSPICIOUS_ACTIVITY", username, "Multiple IPs detected - IP: " + clientIP);
+            JOptionPane.showMessageDialog(this, "Unusual login activity detected. Please contact support for assistance.");
+            return;
+        }
+
+        // Calculate progressive delay
+        long delay = frame.main.sqlite.calculateDelay(username);
+        if (delay > 0) {
+            try {
+                Thread.sleep(delay);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        // Authenticate user
+        User user = frame.main.sqlite.authenticateUser(username, password);
+        
+        if (user == null) {
+            // Increment failed attempts
+            frame.main.sqlite.incrementFailedAttempts(username);
+            
+            // Log failed login attempt
+            frame.main.sqlite.logLoginAttempt(username, clientIP, false);
+            frame.main.sqlite.logSecurityEvent("FAILED_LOGIN", username, "Invalid password - IP: " + clientIP);
+            
+            // Check if account should be locked (after 3 failed attempts)
+            int failedAttempts = frame.main.sqlite.getFailedAttempts(username);
+            int attemptsLeft = 3 - failedAttempts;
+            
+            if (attemptsLeft <= 0) {
+                frame.main.sqlite.lockUser(username);
+                frame.main.sqlite.logSecurityEvent("ACCOUNT_LOCKED", username, "Too many failed attempts - IP: " + clientIP);
+                JOptionPane.showMessageDialog(this, "Account temporarily locked for security. Please contact support to unlock your account.");
+            } else {
+                JOptionPane.showMessageDialog(this, "Invalid username or password. " + attemptsLeft + " attempts remaining.");
+            }
+            return;
+        }
+
+        // Check if account is locked
+        if (user.getLocked() == 1) {
+            frame.main.sqlite.logSecurityEvent("LOCKED_LOGIN_ATTEMPT", username, "Attempted login to locked account - IP: " + clientIP);
+            JOptionPane.showMessageDialog(this, "Account is locked. Please contact administrator.");
+            return;
+        }
+
+        // Successful login
+        frame.main.sqlite.resetFailedAttempts(username);
+        frame.main.sqlite.updateLastLogin(username);
+        frame.main.sqlite.logLoginAttempt(username, clientIP, true);
+        frame.main.sqlite.logSecurityEvent("SUCCESSFUL_LOGIN", username, "User logged in successfully - IP: " + clientIP);
+        
+        // Clear password field for security
+        passwordFld.setText("");
+        
         frame.mainNav();
     }//GEN-LAST:event_loginBtnActionPerformed
 
@@ -94,7 +214,7 @@ public class Login extends javax.swing.JPanel {
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JLabel jLabel1;
     private javax.swing.JButton loginBtn;
-    private javax.swing.JTextField passwordFld;
+    private javax.swing.JPasswordField passwordFld;
     private javax.swing.JButton registerBtn;
     private javax.swing.JTextField usernameFld;
     // End of variables declaration//GEN-END:variables

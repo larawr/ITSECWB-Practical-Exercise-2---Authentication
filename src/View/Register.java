@@ -106,29 +106,86 @@ public class Register extends javax.swing.JPanel {
         );
     }
 
+
     private void registerBtnActionPerformed(java.awt.event.ActionEvent evt) {
         String username = usernameFld.getText().trim();
         String password = new String(passwordFld.getPassword());
         String confirmPassword = new String(confpassFld.getPassword());
 
+        // Enhanced input validation and sanitization
         if (username.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
             JOptionPane.showMessageDialog(this, "All fields are required.");
             return;
         }
 
+        // Sanitize inputs
+        username = frame.main.sqlite.sanitizeInput(username);
+        password = frame.main.sqlite.sanitizeInput(password);
+        confirmPassword = frame.main.sqlite.sanitizeInput(confirmPassword);
+
+        // Check for XSS attempts
+        if (!frame.main.sqlite.isInputSafe(username) || !frame.main.sqlite.isInputSafe(password)) {
+            JOptionPane.showMessageDialog(this, "Invalid characters detected in input.");
+            return;
+        }
+
+        // Username validation
+        if (!frame.main.sqlite.isUsernameValid(username)) {
+            JOptionPane.showMessageDialog(this, "Invalid username format. Use 3-20 characters, letters, numbers, and underscores only.");
+            return;
+        }
+
+        // Check if username already exists
+        if (frame.main.sqlite.userExists(username)) {
+            JOptionPane.showMessageDialog(this, "Username already exists. Please choose a different username.");
+            return;
+        }
+
+        // Password confirmation validation
         if (!password.equals(confirmPassword)) {
             JOptionPane.showMessageDialog(this, "Passwords do not match.");
             return;
         }
 
+        // Enhanced password validation
         if (password.length() < 8) {
-            JOptionPane.showMessageDialog(this, "Password must be at least 8 characters.");
+            JOptionPane.showMessageDialog(this, "Password must be at least 8 characters long.");
             return;
         }
 
-        // Proceed only if valid
-        frame.registerAction(username, password, confirmPassword);
-        frame.loginNav();
+        // Password complexity validation
+        if (!frame.main.sqlite.isPasswordComplex(password)) {
+            JOptionPane.showMessageDialog(this, "Password must contain at least:\n" +
+                "• 8 characters\n" +
+                "• One uppercase letter\n" +
+                "• One lowercase letter\n" +
+                "• One number\n" +
+                "• One special character");
+            return;
+        }
+
+        // Check for common passwords
+        if (frame.main.sqlite.isCommonPassword(password)) {
+            JOptionPane.showMessageDialog(this, "Password is too common. Please choose a more secure password.");
+            return;
+        }
+
+        // Proceed with registration
+        boolean success = frame.registerAction(username, password, confirmPassword);
+        
+        if (success) {
+            // Log successful registration
+            frame.main.sqlite.logSecurityEvent("USER_REGISTERED", username, "New user account created");
+            
+            // Clear sensitive fields
+            passwordFld.setText("");
+            confpassFld.setText("");
+            
+            JOptionPane.showMessageDialog(this, "Registration successful! You can now login.");
+            frame.loginNav();
+        } else {
+            JOptionPane.showMessageDialog(this, "Registration failed. Please try again.");
+        }
     }
 
 

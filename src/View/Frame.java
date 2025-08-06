@@ -4,6 +4,7 @@ import Controller.Main;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Dimension;
+import javax.swing.JOptionPane;
 import javax.swing.WindowConstants;
 import org.mindrot.jbcrypt.BCrypt;
 
@@ -258,12 +259,31 @@ public class Frame extends javax.swing.JFrame {
         frameView.show(Container, "registerPnl");
     }
     
-        public void registerAction(String username, String password, String confpass){
-            // Hash the password securely
+        public boolean registerAction(String username, String password, String confpass){
+            // Check if username already exists
+            if (main.sqlite.userExists(username)) {
+                JOptionPane.showMessageDialog(this, "Username already taken.");
+                return false;
+            }
+            
+            // Check password history (prevent reuse of recent passwords)
+            if (main.sqlite.isPasswordInHistory(username, password)) {
+                JOptionPane.showMessageDialog(this, "Password has been used recently. Please choose a different password.");
+                return false;
+            }
+            
+            // Hash the password securely using BCrypt
             String hashedPassword = BCrypt.hashpw(password, BCrypt.gensalt());
-
+            
             // Save the username and hashed password to the database
-            main.sqlite.addUser(username, hashedPassword);
+            boolean success = main.sqlite.addUser(username, hashedPassword, 2); // Default role is 2 (client)
+            
+            if (success) {
+                // Add password to history for future reference
+                main.sqlite.addPasswordToHistory(username, hashedPassword);
+            }
+            
+            return success;
         }
 
 

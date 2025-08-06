@@ -24,42 +24,45 @@ public class Main {
         // Initialize a driver object
         sqlite = new SQLite();
 
-//        // Create a database
-//        sqlite.createNewDatabase();
-//        
-//        // Drop users table if needed
-//        sqlite.dropHistoryTable();
-//        sqlite.dropLogsTable();
-//        sqlite.dropProductTable();
-//        sqlite.dropUserTable();
-//        
-//        // Create users table if not exist
-//        sqlite.createHistoryTable();
-//        sqlite.createLogsTable();
-//        sqlite.createProductTable();
-//        sqlite.createUserTable();
-//        
-//        // Add sample history
-//        sqlite.addHistory("admin", "Antivirus", 1, "2019-04-03 14:30:00.000");
-//        sqlite.addHistory("manager", "Firewall", 1, "2019-04-03 14:30:01.000");
-//        sqlite.addHistory("staff", "Scanner", 1, "2019-04-03 14:30:02.000");
-//        
-//        // Add sample logs
-//        sqlite.addLogs("NOTICE", "admin", "User creation successful", new Timestamp(new Date().getTime()).toString());
-//        sqlite.addLogs("NOTICE", "manager", "User creation successful", new Timestamp(new Date().getTime()).toString());
-//        sqlite.addLogs("NOTICE", "admin", "User creation successful", new Timestamp(new Date().getTime()).toString());
-//        
-//        // Add sample product
-//        sqlite.addProduct("Antivirus", 5, 500.0);
-//        sqlite.addProduct("Firewall", 3, 1000.0);
-//        sqlite.addProduct("Scanner", 10, 100.0);
-//
-//        // Add sample users
-//        sqlite.addUser("admin", "qwerty1234" , 5);
-//        sqlite.addUser("manager", "qwerty1234", 4);
-//        sqlite.addUser("staff", "qwerty1234", 3);
-//        sqlite.addUser("client1", "qwerty1234", 2);
-//        sqlite.addUser("client2", "qwerty1234", 2);
+        // Create a database
+        sqlite.createNewDatabase();
+        
+        // Drop existing tables to recreate with new schema
+        sqlite.dropHistoryTable();
+        sqlite.dropLogsTable();
+        sqlite.dropProductTable();
+        sqlite.dropUserTable();
+        
+        // Create users table if not exist
+        sqlite.createHistoryTable();
+        sqlite.createLogsTable();
+        sqlite.createProductTable();
+        sqlite.createUserTable();
+        sqlite.createLoginAttemptsTable();
+        sqlite.createPasswordHistoryTable();
+        
+        // Add sample history
+        sqlite.addHistory("admin", "Antivirus", 1, "2019-04-03 14:30:00.000");
+        sqlite.addHistory("manager", "Firewall", 1, "2019-04-03 14:30:01.000");
+        sqlite.addHistory("staff", "Scanner", 1, "2019-04-03 14:30:02.000");
+        
+        // Add sample logs
+        sqlite.addLogs("NOTICE", "admin", "User creation successful", new Timestamp(new Date().getTime()).toString());
+        sqlite.addLogs("NOTICE", "manager", "User creation successful", new Timestamp(new Date().getTime()).toString());
+        sqlite.addLogs("NOTICE", "admin", "User creation successful", new Timestamp(new Date().getTime()).toString());
+        
+        // Add sample product
+        sqlite.addProduct("Antivirus", 5, 500.0);
+        sqlite.addProduct("Firewall", 3, 1000.0);
+        sqlite.addProduct("Scanner", 10, 100.0);
+
+        // Add sample users with hashed passwords
+        String hashedPassword = org.mindrot.jbcrypt.BCrypt.hashpw("qwerty1234", org.mindrot.jbcrypt.BCrypt.gensalt());
+        sqlite.addUser("admin", hashedPassword, 5);
+        sqlite.addUser("manager", hashedPassword, 4);
+        sqlite.addUser("staff", hashedPassword, 3);
+        sqlite.addUser("client1", hashedPassword, 2);
+        sqlite.addUser("client2", hashedPassword, 2);
 //        
 //        
 //        // Get users
